@@ -1,0 +1,90 @@
+train <- read.csv("train_bdhs_unmet_need.csv")
+test  <- read.csv("test_bdhs_unmet_need.csv")
+
+train$unmet_need <- factor(train$unmet_need)
+test$unmet_need  <- factor(test$unmet_need)
+
+multi_logit <- multinom(
+  unmet_need ~ women_edu+ partner_edu+age_grp+ residence+ mother_working_status+wealth+occ_woman+occ_husband+fp_info_cat+dist_barrier+fp_system_contact+health_access,
+  data = train
+)
+summary(multi_logit)
+coefs <- summary(multi_logit)$coefficients
+ses   <- summary(multi_logit)$standard.errors
+
+OR  <- exp(coefs)
+LCI <- exp(coefs - 1.96 * ses)
+UCI <- exp(coefs + 1.96 * ses)
+
+OR_table <- data.frame(OR, LCI, UCI)
+OR_table
+
+pred_logit <- predict(multi_logit, newdata = test)
+
+confusionMatrix(pred_logit, test$unmet_need)
+
+######
+set.seed(228)
+
+rf_model <- randomForest(
+  unmet_need ~ .,
+  data = train,
+  ntree = 500,
+  importance = TRUE
+)
+varImpPlot(rf_model, type = 2)
+
+rf_pred <- predict(rf_model, test)
+
+confusionMatrix(rf_pred, test$unmet_need)
+
+
+#########3333
+train$y <- as.numeric(train$unmet_need) - 1
+test$y  <- as.numeric(test$unmet_need) - 1
+x_train <- model.matrix(
+  ~ women_edu+ partner_edu+age_grp+ residence+ mother_working_status+wealth+occ_woman+occ_husband+fp_info_cat+dist_barrier+fp_system_contact+health_access,
+  data = train
+)[, -1]
+
+x_test <- model.matrix(
+  ~ women_edu+ partner_edu+age_grp+ residence+ mother_working_status+wealth+occ_woman+occ_husband+fp_info_cat+dist_barrier+fp_system_contact+health_access,
+  data = test
+)[, -1]
+library(xgboost)
+
+dtrain <- xgb.DMatrix(data = x_train, label = train$y)
+dtest  <- xgb.DMatrix(data = x_test,  label = test$y)
+params <- list(
+  objective = "multi:softmax",
+  num_class = 3,
+  eval_metric = "mlogloss",
+  learning_rate = 0.1,
+  max_depth = 6,
+  subsample = 0.8,
+  colsample_bytree = 0.8
+)
+xgb_model <- xgb.train(
+  params = params,
+  data = dtrain,
+  nrounds = 200,
+  watchlist = list(train = dtrain, test = dtest),
+  verbose = 0
+)
+pred_xgb <- predict(xgb_model, dtest)
+
+pred_xgb <- factor(pred_xgb,
+                   levels = c(0,1,2),
+                   labels = levels(test$unmet_need))
+
+confusionMatrix(pred_xgb, test$unmet_need)
+############3
+params_shap <- list(
+  objective = "multi:softprob",
+  num_class = 3,
+  eval_metric = "mlogloss",
+  learning_rate = 0.1,
+  max_depth = 6,
+  subsample = 0.8,
+  colsample_bytree = 0.8
+)
