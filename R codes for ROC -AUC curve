@@ -1,0 +1,151 @@
+
+
+p_mlr <- plot_confusion(pred_logit, test$unmet_need,
+                        "Confusion Matrix – MLR")
+
+p_rf  <- plot_confusion(rf_pred, test$unmet_need,
+                        "Confusion Matrix – RF")
+
+p_xgb <- plot_confusion(pred_xgb, test$unmet_need,
+                        "Confusion Matrix – XGBoost")
+
+library(gridExtra)
+grid.arrange(p_mlr, p_rf, p_xgb, ncol = 3)
+
+
+#############
+library(pROC)
+prob_mlr <- predict(multi_logit, newdata = test, type = "probs")
+prob_rf <- predict(rf_model, test, type = "prob")
+# Train probability model (you already did)
+pred_prob_xgb <- predict(xgb_shap, dtest)
+
+# Convert to matrix
+prob_xgb <- matrix(pred_prob_xgb, ncol = 3, byrow = TRUE)
+colnames(prob_xgb) <- levels(test$unmet_need)
+# Train probability model (you already did)
+pred_prob_xgb <- predict(xgb_shap, dtest)
+
+# Convert to matrix
+prob_xgb_vec <- predict(xgb_shap, dtest)
+
+prob_xgb <- matrix(
+  prob_xgb_vec,
+  ncol = 3,
+  byrow = TRUE
+)
+
+colnames(prob_xgb) <- levels(test$unmet_need)
+
+head(prob_xgb)
+########33
+stopifnot(
+  all(colnames(prob_mlr) == levels(test$unmet_need)),
+  all(colnames(prob_rf)  == levels(test$unmet_need)),
+  all(colnames(prob_xgb) == levels(test$unmet_need))
+)
+###############
+library(pROC)
+
+roc_mlr <- multiclass.roc(test$unmet_need, prob_mlr)
+roc_rf  <- multiclass.roc(test$unmet_need, prob_rf)
+roc_xgb <- multiclass.roc(test$unmet_need, prob_xgb)
+
+auc_mlr <- auc(roc_mlr)
+auc_rf  <- auc(roc_rf)
+auc_xgb <- auc(roc_xgb)
+
+auc_mlr; auc_rf; auc_xgb
+
+
+######need Micro auc roc curve
+
+library(pROC)
+
+ovr_roc <- function(truth, probs, class_label){
+  
+  binary_truth <- ifelse(truth == class_label, 1, 0)
+  
+  roc(
+    response  = binary_truth,
+    predictor = probs[, class_label],
+    quiet = TRUE
+  )
+}
+#########3No unmet
+roc_mlr_no  <- ovr_roc(test$unmet_need, prob_mlr, "0")
+roc_rf_no   <- ovr_roc(test$unmet_need, prob_rf,  "0")
+roc_xgb_no  <- ovr_roc(test$unmet_need, prob_xgb, "0")
+plot(
+  roc_mlr_no,
+  col = "blue",
+  lwd = 2,
+  main = "ROC Curve: No Unmet Need"
+)
+
+plot(roc_rf_no,  col = "red",   lwd = 2, add = TRUE)
+plot(roc_xgb_no, col = "green", lwd = 2, add = TRUE)
+
+legend(
+  "bottomright",
+  legend = c(
+    paste0("MLR (AUC = ", round(auc(roc_mlr_no), 3), ")"),
+    paste0("RF (AUC = ",  round(auc(roc_rf_no), 3), ")"),
+    paste0("XGBoost (AUC = ", round(auc(roc_xgb_no), 3), ")")
+  ),
+  col = c("blue", "red", "green"),
+  lwd = 2
+)
+############Spacing
+roc_mlr_space <- ovr_roc(test$unmet_need, prob_mlr, "1")
+roc_rf_space  <- ovr_roc(test$unmet_need, prob_rf,  "1")
+roc_xgb_space <- ovr_roc(test$unmet_need, prob_xgb, "1")
+
+plot(
+  roc_mlr_space,
+  col = "blue",
+  lwd = 2,
+  main = "ROC Curve: Unmet Need for Spacing"
+)
+
+plot(roc_rf_space,  col = "red",   lwd = 2, add = TRUE)
+plot(roc_xgb_space, col = "green", lwd = 2, add = TRUE)
+
+legend(
+  "bottomright",
+  legend = c(
+    paste0("MLR (AUC = ", round(auc(roc_mlr_space), 3), ")"),
+    paste0("RF (AUC = ",  round(auc(roc_rf_space), 3), ")"),
+    paste0("XGBoost (AUC = ", round(auc(roc_xgb_space), 3), ")")
+  ),
+  col = c("blue", "red", "green"),
+  lwd = 2
+)
+
+######3limiting
+roc_mlr_lim <- ovr_roc(test$unmet_need, prob_mlr, "2")
+roc_rf_lim  <- ovr_roc(test$unmet_need, prob_rf,  "2")
+roc_xgb_lim <- ovr_roc(test$unmet_need, prob_xgb, "2")
+
+plot(
+  roc_mlr_lim,
+  col = "blue",
+  lwd = 2,
+  main = "ROC Curve: Unmet Need for Limiting"
+)
+
+plot(roc_rf_lim,  col = "red",   lwd = 2, add = TRUE)
+plot(roc_xgb_lim, col = "green", lwd = 2, add = TRUE)
+
+legend(
+  "bottomright",
+  legend = c(
+    paste0("MLR (AUC = ", round(auc(roc_mlr_lim), 3), ")"),
+    paste0("RF (AUC = ",  round(auc(roc_rf_lim), 3), ")"),
+    paste0("XGBoost (AUC = ", round(auc(roc_xgb_lim), 3), ")")
+  ),
+  col = c("blue", "red", "green"),
+  lwd = 2
+)
+
+
