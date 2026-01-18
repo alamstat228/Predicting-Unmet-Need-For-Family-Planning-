@@ -1,30 +1,59 @@
-# Predicting-Unmet-Need-For-Family-Planning-
-Code for predicting unmet need for family planning in Bangladesh using BDHS 2022 data.
-# Predicting Unmet Need for Family Planning in Bangladesh (BDHS 2022)
+# Predicting Unmet Need for Family Planning (BDHS 2022)
 
-This repository contains all author-generated code used in the manuscript:
+This repository contains all author-generated scripts used to reproduce the analysis and results reported in:
 
-**Predicting Unmet Need for Family Planning in Bangladesh Using Machine Learning Approaches**
+**Alam et al. (2026). Predicting Unmet Need for Family Planning in Bangladesh Using Machine Learning Approaches: Insights from BDHS 2022 Dataset**  
+*Submitted to PLOS Global Public Health*
 
-## Data
-Data were obtained from the Bangladesh Demographic and Health Survey (BDHS) 2022.
-Due to DHS data sharing restrictions, raw data are not publicly available.
-Researchers can request access via: https://dhsprogram.com
+---
 
-## Analysis workflow
-1. Data preprocessing and variable construction
-2. Multinomial logistic regression
-3. Random Forest and XGBoost models
-4. SHAP based analysis
-5. Panel analysis for Multinomial logistic regression and forest plots
+## 📦 Overview
+
+This project uses machine learning and traditional statistical methods to **predict unmet need for family planning** in Bangladesh using the **Bangladesh Demographic and Health Survey (BDHS) 2022**.
+
+The analysis includes:
+- Data preprocessing
+- Feature selection (Boruta)
+- Multinomial logistic regression
+- Random Forest and XGBoost
+- SHAP (Shapley Additive exPlanations) for model interpretation
+
+---
+
+## 📁 Repository Structure
 
 
-R version 4.5.2 (2025-10-31 ucrt)
-Platform: x86_64-w64-mingw32/x64
-Running under: Windows 11 x64 (build 26100)
+---
 
-Key packages:
-caret, randomForest, xgboost, Boruta, shapviz, ggplot2
+## 🧠 Data Access
 
-## Reproducibility
-All scripts are numbered and can be executed sequentially after placing the BDHS dataset in the `/data` directory.
+The raw BDHS 2022 dataset is **not included** in this repository due to data use restrictions.
+
+To obtain the dataset:
+
+1. Register at **The DHS Program**: https://dhsprogram.com  
+2. Request access to *Bangladesh DHS 2022 (IR file)*  
+3. After approval, download the data to your local machine
+
+Place the downloaded dataset in the `/data/` folder (not committed here).
+
+---
+
+## 🛠 Dependencies & Software
+
+This analysis was performed in **R**. The required packages include (but are not limited to):
+
+- caret  
+- randomForest  
+- xgboost  
+- Boruta  
+- shapviz  
+- ggplot2  
+- haven  
+- dplyr
+
+To install dependencies:
+
+```r
+install.packages(c("caret","randomForest","xgboost","Boruta","shapviz","ggplot2","haven","dplyr"))
+
