@@ -37,7 +37,7 @@ To obtain the dataset:
 
 Place the downloaded dataset in the `/data/` folder (not committed here).
 
----
+.
 
 ## 🛠 Dependencies & Software
 
