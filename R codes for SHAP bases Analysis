@@ -1,0 +1,180 @@
+xgb_shap <- xgb.train(
+  params = params_shap,
+  data = dtrain,
+  nrounds = 200,
+  verbose = 0
+)
+
+shap_values <- predict(
+  xgb_shap,
+  dtrain,
+  predcontrib = TRUE
+)
+
+
+##############
+library(shapviz)
+library(data.table)
+library(ggplot2)
+
+
+dim(shap_values)
+# [1] n_obs  3  (p + 1)
+# Convert x_train to data.frame EXACTLY as used by xgboost
+x_train_df <- as.data.frame(x_train)
+
+# Store feature names
+feature_names <- colnames(x_train_df)
+p <- length(feature_names)
+
+# Sanity check (DO THIS)
+stopifnot(ncol(x_train_df) == p)
+dim(shap_values)
+# n_obs × n_class × (p + 1)
+get_shapviz_class <- function(class_id) {
+  
+  # Extract SHAP for one class
+  shap_class <- shap_values[, class_id, ]
+  
+  # Convert to matrix
+  shap_mat <- matrix(
+    shap_class,
+    nrow = nrow(x_train_df),
+    ncol = p + 1
+  )
+  
+  # Assign names (features + BIAS)
+  colnames(shap_mat) <- c(feature_names, "BIAS")
+  
+  # IMPORTANT: remove BIAS for shapviz()
+  shap_mat_nobias <- shap_mat[, feature_names, drop = FALSE]
+  
+  shapviz(
+    shap_mat_nobias,
+    X = x_train_df,
+    baseline = 0
+  )
+}
+sv_no_unmet <- get_shapviz_class(1)
+sv_spacing  <- get_shapviz_class(2)
+sv_limiting <- get_shapviz_class(3)
+colnames(sv_no_unmet$S) == colnames(x_train_df)
+####SHAP SUMMARY (BEESWARM)
+sv_importance(sv_no_unmet, kind = "beeswarm") +
+  ggtitle("No Unmet Need")
+
+sv_importance(sv_spacing, kind = "beeswarm") +
+  ggtitle("Spacing")
+
+sv_importance(sv_limiting, kind = "beeswarm") +
+  ggtitle("Limiting")
+##BAR PLOT (GLOBAL IMPORTANCE)
+sv_importance(sv_no_unmet, kind = "bar") +
+  ggtitle("No Unmet Need")
+
+sv_importance(sv_spacing, kind = "bar") +
+  ggtitle("Spacing")
+
+sv_importance(sv_limiting, kind = "bar") +
+  ggtitle("Limiting")
+
+#####DEPENDENCY PLOT
+#sv_dependence(
+  #sv_no_unmet,
+  #v = "age_grp",
+  #color_var = "dist_barrier"
+#) +
+  #ggtitle("SHAP Dependence: Age group × Distance barrier")
+
+#########LOOP OVER ALL VARIABLES (DEPENDENCY)
+for (v in colnames(x_train_df)) {
+  print(
+    sv_dependence(sv_no_unmet, v = v) +
+      ggtitle(paste("No unmet need –", v))
+  )
+}
+#####
+for (v in colnames(x_train_df)) {
+  print(
+    sv_dependence(sv_spacing, v = v) +
+      ggtitle(paste("Spacing –", v))
+  )
+}
+#####
+for (v in colnames(x_train_df)) {
+  print(
+    sv_dependence(sv_limiting, v = v) +
+      ggtitle(paste("Limiting –", v))
+  )
+}
+
+
+
+#################Interaction
+shap_interaction <- predict(
+  xgb_shap,
+  dtrain,
+  predinteraction = TRUE
+)
+dim(shap_interaction)
+# [1] 1614    3   13   13
+ncol(x_train)
+# [1] 12
+p <- ncol(x_train)   # 12
+shap_inter_no_unmet <- shap_interaction[
+  ,          # all observations
+  1,         # class 1 = No_unmet
+  1:p,       # features (rows) — exclude BIAS
+  1:p        # features (cols) — exclude BIAS
+]
+dim(shap_inter_no_unmet)
+####
+x_train_df <- as.data.frame(x_train)
+
+# Ensure column names are identical
+stopifnot(identical(colnames(x_train_df), colnames(x_train)))
+#####
+sv_all <- shapviz(
+  xgb_shap,
+  X = x_train_df,
+  X_pred = as.matrix(x_train_df),
+  interactions = TRUE
+)
+######
+sv_no_unmet <- sv_all[[1]]
+sv_spacing  <- sv_all[[2]]
+sv_limiting <- sv_all[[3]]
+######
+sv_interaction(sv_no_unmet) +
+  ggtitle("No Unmet Need")
+###
+sv_interaction(sv_spacing) +
+  ggtitle("Spacing")
+#####
+sv_interaction(sv_limiting) +
+  ggtitle("Limiting")
+###
+
+#####################
+library(caret)
+library(ggplot2)
+library(reshape2)
+
+plot_confusion <- function(pred, truth, title){
+  
+  cm <- confusionMatrix(pred, truth)
+  df <- as.data.frame(cm$table)
+  
+  ggplot(df, aes(x = Reference, y = Prediction, fill = Freq)) +
+    geom_tile(color = "white") +
+    geom_text(aes(label = Freq), size = 4) +
+    scale_fill_gradient(low = "white", high = "steelblue") +
+    labs(
+      title = title,
+      x = "Observed",
+      y = "Predicted",
+      fill = "Count"
+    ) +
+    theme_minimal()
+}
+
