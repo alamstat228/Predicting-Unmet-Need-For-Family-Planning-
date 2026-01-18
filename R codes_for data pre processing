@@ -1,0 +1,64 @@
+This folder contains all R scripts used in the analysis.
+Scripts are numbered in the order they should be run.
+#####################DATA PREPROCESSING
+library(tidyverse)
+library(caret)
+library(nnet)
+library(randomForest)
+library(xgboost)
+library(haven)
+library(reshape2)
+library(ggplot2)
+bdhs <- read_dta("C:/Users/ASUS/Desktop/My new work/bdhs.dta")
+View(bdhs)
+
+na.omit(bdhs)
+
+vars <- c("unmet_need",
+  "women_edu", "partner_edu","age_grp", "residence", "mother_working_status", "wealth", "occ_woman", "occ_husband", "fp_info_cat" ,"dist_barrier", "fp_system_contact", "health_access"
+)
+
+bdhs2 <- bdhs[, vars]
+
+bdhs2 <- na.omit(bdhs2)
+
+nrow(bdhs2)
+bdhs2$unmet_need=as.factor(bdhs2$unmet_need)
+table(bdhs2$unmet_need)
+
+prop.table(table(bdhs2$unmet_need))
+
+
+
+
+
+
+barplot(
+  table(bdhs2$unmet_need),
+  main = "Class Distribution of Unmet Need",
+  ylab = "Frequency",
+  col  = c("steelblue", "darkorange", "forestgreen")
+)
+
+
+
+set.seed(228)
+
+train_index <- createDataPartition(
+  bdhs2$unmet_need,
+  p = 0.75,
+  list = FALSE
+)
+
+train <- bdhs2[train_index, ]
+test  <- bdhs2[-train_index, ]
+
+prop.table(table(train$unmet_need))
+prop.table(table(test$unmet_need))
+
+class_weights <- 1 / prop.table(table(train$unmet_need))
+class_weights
+
+
+write.csv(train, "train_bdhs_unmet_need.csv", row.names = FALSE)
+write.csv(test,  "test_bdhs_unmet_need.csv", row.names = FALSE)
