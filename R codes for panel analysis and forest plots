@@ -1,0 +1,125 @@
+
+
+#########
+
+macro_metrics <- function(pred, truth){
+  
+  cm <- confusionMatrix(pred, truth)
+  
+  precision <- cm$byClass[, "Pos Pred Value"]
+  recall    <- cm$byClass[, "Sensitivity"]
+  f1        <- 2 * (precision * recall) / (precision + recall)
+  
+  data.frame(
+    Macro_Precision = mean(precision, na.rm = TRUE),
+    Macro_Recall    = mean(recall, na.rm = TRUE),
+    Macro_F1        = mean(f1, na.rm = TRUE)
+  )
+}
+############
+metrics_mlr <- macro_metrics(pred_logit, test$unmet_need)
+metrics_rf  <- macro_metrics(rf_pred,    test$unmet_need)
+metrics_xgb <- macro_metrics(pred_xgb,   test$unmet_need)
+
+metrics_mlr
+metrics_rf
+metrics_xgb
+##############3
+performance_table <- rbind(
+  cbind(Model = "Multinomial Logistic Regression", metrics_mlr),
+  cbind(Model = "Random Forest", metrics_rf),
+  cbind(Model = "XGBoost", metrics_xgb)
+)
+
+performance_table
+#############
+coef_mlr <- summary(multi_logit)$coefficients
+se_mlr   <- summary(multi_logit)$standard.errors
+
+OR  <- exp(coef_mlr)
+LCI <- exp(coef_mlr - 1.96 * se_mlr)
+UCI <- exp(coef_mlr + 1.96 * se_mlr)
+############
+panel_spacing <- data.frame(
+  Variable = colnames(OR),
+  OR  = OR[1, ],
+  LCI = LCI[1, ],
+  UCI = UCI[1, ]
+)
+
+panel_spacing
+###########
+panel_limiting <- data.frame(
+  Variable = colnames(OR),
+  OR  = OR[2, ],
+  LCI = LCI[2, ],
+  UCI = UCI[2, ]
+)
+
+panel_limiting
+##############
+
+panel_spacing  <- panel_spacing  %>% filter(Variable != "(Intercept)")
+panel_limiting <- panel_limiting %>% filter(Variable != "(Intercept)")
+#########3
+panel_spacing  <- panel_spacing  %>%
+  mutate(across(c(OR, LCI, UCI), ~ round(.x, 2)))
+
+panel_limiting <- panel_limiting %>%
+  mutate(across(c(OR, LCI, UCI), ~ round(.x, 2)))
+####################
+
+label_map <- c(
+  women_edu = "Woman’s education",
+  partner_edu = "Partner’s education",
+  age_grp = "Age group",
+  residence = "Urban residence",
+  mother_working_status = "Woman currently working",
+  wealth = "Household wealth index",
+  occ_woman = "Woman’s occupation",
+  occ_husband = "Husband’s occupation",
+  fp_info_cat = "Exposure to FP information",
+  dist_barrier = "Distance to health facility (barrier)",
+  fp_system_contact = "Contact with FP services",
+  health_access = "Healthcare accessibility"
+)
+
+panel_spacing$Variable  <- label_map[panel_spacing$Variable]
+panel_limiting$Variable <- label_map[panel_limiting$Variable]
+
+##############
+library(ggplot2)
+
+forest_plot <- function(df, title){
+  
+  ggplot(df, aes(
+    y = reorder(Variable, OR),
+    x = OR
+  )) +
+    geom_point(size = 2) +
+    geom_errorbarh(
+      aes(xmin = LCI, xmax = UCI),
+      height = 0.2
+    ) +
+    geom_vline(xintercept = 1, linetype = "dashed") +
+    scale_x_log10() +
+    labs(
+      x = "Odds Ratio (log scale)",
+      y = "",
+      title = title
+    ) +
+    theme_minimal(base_size = 12)
+}
+############
+forest_plot(
+  panel_spacing,
+  "Spacing vs No Unmet Need"
+)
+######
+forest_plot(
+  panel_limiting,
+  "Limiting vs No Unmet Need"
+)
+###########
+
+
